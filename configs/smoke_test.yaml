@@ -1,0 +1,49 @@
+project_name: NeuroSense-Net-SmokeTest
+seed: 42
+deterministic: true
+
+paths:
+  data_root: null
+  output_root: outputs
+  checkpoint_root: checkpoints
+
+data:
+  use_synthetic: true
+  synthetic_train_size: 128
+  synthetic_val_size: 32
+  synthetic_test_size: 32
+  num_workers: 0
+  batch_size: 16
+  normalize: true
+  modality_key_overrides: {}
+  label_mapping: null
+
+model:
+  hidden_dim: 128
+  num_heads: 4
+  num_fusion_layers: 1
+  dropout: 0.10
+  classifier_hidden_dim: 128
+  sequence_encoder: attention_pooling
+
+loss:
+  name: focal
+  gamma: 2.0
+  class_weight_strategy: effective_number
+  effective_num_beta: 0.999
+
+training:
+  epochs: 3
+  learning_rate: 0.0005
+  weight_decay: 0.01
+  warmup_ratio: 0.10
+  gradient_clip_norm: 1.0
+  gradient_accumulation_steps: 1
+  modality_dropout_probability: 0.05
+  early_stopping_patience: 5
+  mixed_precision: false
+
+evaluation:
+  primary_metric: macro_f1
+  save_predictions: true
+  run_modality_ablation: true

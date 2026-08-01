@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neurosense_net"
+version = "1.0.0"
+description = "Research-grade multimodal emotion recognition from MELD"
+authors = [{ name = "NeuroSense-Net Contributors" }]
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]

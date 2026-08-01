@@ -1,0 +1,49 @@
+project_name: NeuroSense-Net
+seed: 42
+deterministic: true
+
+paths:
+  data_root: null
+  output_root: outputs
+  checkpoint_root: checkpoints
+
+data:
+  use_synthetic: false
+  synthetic_train_size: 256
+  synthetic_val_size: 64
+  synthetic_test_size: 64
+  num_workers: 0
+  batch_size: 32
+  normalize: true
+  modality_key_overrides: {}
+  label_mapping: null
+
+model:
+  hidden_dim: 256
+  num_heads: 4
+  num_fusion_layers: 2
+  dropout: 0.20
+  classifier_hidden_dim: 256
+  sequence_encoder: attention_pooling
+
+loss:
+  name: focal
+  gamma: 2.0
+  class_weight_strategy: effective_number
+  effective_num_beta: 0.999
+
+training:
+  epochs: 30
+  learning_rate: 0.0002
+  weight_decay: 0.01
+  warmup_ratio: 0.10
+  gradient_clip_norm: 1.0
+  gradient_accumulation_steps: 1
+  modality_dropout_probability: 0.10
+  early_stopping_patience: 8
+  mixed_precision: true
+
+evaluation:
+  primary_metric: macro_f1
+  save_predictions: true
+  run_modality_ablation: true
