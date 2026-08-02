@@ -1,5 +1,8 @@
 # Python
 __pycache__/
+/data/
+*.mp4
+*.wav
 *.py[cod]
 *$py.class
 *.so
@@ -32,7 +35,7 @@ htmlcov/
 # Outputs and Checkpoints
 outputs/
 checkpoints/
-data/
+/data/
 neurosense_outputs/
 *.pt
 *.pth

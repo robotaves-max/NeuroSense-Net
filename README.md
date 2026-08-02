@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 
-**NeuroSense-Net** is a research-grade, reproducible deep learning framework for multimodal utterance-level emotion recognition from the **MELD** (Multimodal EmotionLines Dataset) benchmark. It dynamically fuses **Text**, **Audio**, and **Video** representations using a reliability-aware adaptive gating mechanism and transformer cross-modal self-attention.
+**NeuroSense-Net** is a reproducible multimodal emotion-recognition project built around the real **MELD** (Multimodal EmotionLines Dataset) benchmark. It combines **Text**, **Audio**, and **Video** representations using reliability-aware adaptive gating and cross-modal transformer attention. A Streamlit interface lets a user select any available input(s) at prediction time.
 
 > **Scientific Honesty & Disclaimer**: NeuroSense-Net is a *SOTA-oriented research prototype*. Performance claims on real benchmark data require empirical verification on exact MELD data splits. Gate weights reflect model feature allocation confidence under given inputs, not causal psychological evidence.
 
@@ -126,7 +126,31 @@ NeuroSense-Net/
 git clone https://github.com/your-username/NeuroSense-Net.git
 cd NeuroSense-Net
 pip install -r requirements.txt
+# Required for real MELD feature extraction and the web interface
+pip install -r requirements-optional.txt
 ```
+
+### Real MELD workflow
+
+Download the official MELD release from the [MELD project page](https://affective-meld.github.io/) and place its split CSV files and utterance MP4 clips below one folder. Raw media is not bundled with this repository.
+
+```bash
+# 1. Create frozen pretrained representations from real aligned MELD clips.
+#    --limit is useful for testing the setup before a full run.
+python scripts/prepare_meld.py --data-root data/MELD.Raw --output-dir data/processed_meld
+
+# 2. Train the fusion model on real data.
+python scripts/train.py --config configs/default.yaml --data-root data/processed_meld
+
+# 3. Evaluate all single-modality and multimodal combinations.
+python scripts/evaluate.py --checkpoint outputs/<RUN>/checkpoints/best.pt --data-root data/processed_meld
+
+# 4. Start the selectable-input demo. It uses public pretrained text, speech,
+#    and face-emotion models and does not require a locally trained checkpoint.
+streamlit run app.py
+```
+
+The preparation step uses frozen pretrained encoders: MiniLM for text, wav2vec 2.0 for audio, and ImageNet-pretrained ResNet-18 frame features for video. The trainable cross-modal fusion model learns the MELD emotion task. This is an engineering-friendly transfer-learning approach; it must be evaluated on the supplied MELD split before reporting performance.
 
 ### 1. Run Automated Smoke Test (Synthetic Data)
 
