@@ -35,8 +35,6 @@ class CrossModalAttention(nn.Module):
         Returns:
             contextualized_tokens: [B, 3, hidden_dim]
         """
-        batch_size = modality_tokens.shape[0]
-
         # Add modality type embeddings
         tokens = modality_tokens + self.modality_type_embeddings.unsqueeze(0)  # [B, 3, hidden_dim]
 

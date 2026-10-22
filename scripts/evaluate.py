@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
+import json
 
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -66,6 +67,10 @@ def main():
         dropout=config.model.dropout,
         classifier_hidden_dim=config.model.classifier_hidden_dim,
         sequence_encoder_type=config.model.sequence_encoder,
+        baseline=config.model.baseline,
+        use_gate=config.model.use_gate,
+        use_cross_modal_attention=config.model.use_cross_modal_attention,
+        use_speaker_embedding=config.context.speaker_identity or config.model.use_speaker_embedding,
     )
     model.load_state_dict(ckpt["model_state_dict"])
     model.to(device)
@@ -77,7 +82,11 @@ def main():
     else:
         inspector = DatasetInspector(data_root=args.data_root or config.paths.data_root)
         report = inspector.inspect()
-        eval_dataset = MELDDataset(inspector.splits[args.split], keys_map=report["inferred_keys"])
+        eval_dataset = MELDDataset(
+            inspector.splits[args.split],
+            keys_map=report["inferred_keys"],
+            context_window=config.context.window,
+        )
 
     collate_fn = MultimodalCollate()
     eval_loader = DataLoader(
@@ -89,7 +98,12 @@ def main():
     )
 
     evaluator = Evaluator(model, eval_loader, device)
-    res = evaluator.evaluate()
+    calibration_path = checkpoint_path.parent.parent / "calibration.json"
+    temperature = 1.0
+    if calibration_path.exists():
+        with calibration_path.open("r", encoding="utf-8") as handle:
+            temperature = float(json.load(handle)["temperature"])
+    res = evaluator.evaluate(temperature=temperature)
     metrics = res["metrics"]
 
     logger.info("=" * 60)

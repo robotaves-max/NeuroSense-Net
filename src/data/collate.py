@@ -12,6 +12,7 @@ class MultimodalCollate:
         # Collate labels and sample IDs
         collated["label"] = torch.stack([s["label"] for s in batch], dim=0)
         collated["ids"] = [s["id"] for s in batch]
+        collated["speaker_id"] = torch.tensor([s.get("speaker_id", 0) for s in batch], dtype=torch.long)
 
         # Process each modality
         for mod in ["text", "audio", "video"]:

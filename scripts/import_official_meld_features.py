@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import pickle
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -49,6 +48,8 @@ def main() -> None:
             samples.append({
                 "id": f"{output_name}_d{dialogue}_u{utterance}",
                 "label": item["y"],
+                "dialogue_id": dialogue,
+                "utterance_id": utterance,
                 "text": torch.from_numpy(text), "text_avail": True,
                 "audio": torch.from_numpy(audio), "audio_avail": True,
                 "video": torch.zeros(1, dtype=torch.float32), "video_avail": False,
