@@ -75,10 +75,17 @@ flowchart TD
 
 ```text
 NeuroSense-Net/
-├── README.md                            # Comprehensive documentation
+├── app.py                               # Streamlit demo
+├── CITATION.cff                         # Citation metadata
+├── CONTRIBUTING.md                      # Contributor guidance
+├── LICENSE                              # MIT License
+├── README.md                            # Project documentation
 ├── requirements.txt                     # Core dependencies
+├── requirements-optional.txt            # Feature extraction and demo dependencies
 ├── pyproject.toml                       # Build & pytest config
 ├── .gitignore
+├── examples/
+│   └── sample_predictions.csv           # Small synthetic example output
 ├── configs/                             # YAML hyperparameter configs
 │   ├── default.yaml
 │   ├── smoke_test.yaml
@@ -91,10 +98,12 @@ NeuroSense-Net/
 │   ├── metrics.py                       # Sklearn metrics calculator
 │   ├── visualization.py                 # Publication PNG plotting
 │   ├── engine.py                        # Trainer, Evaluator, Ablation
+│   ├── inference.py                     # Demo inference helpers
 │   ├── data/
 │   │   ├── __init__.py
 │   │   ├── dataset.py                   # MELDDataset & SyntheticMELDDataset
 │   │   ├── collate.py                   # Dynamic multimodal collate
+│   │   ├── meld.py                      # MELD manifest and feature extraction
 │   │   └── inspection.py                # DatasetInspector report generator
 │   └── models/
 │       ├── __init__.py
@@ -106,6 +115,8 @@ NeuroSense-Net/
 │   ├── train.py
 │   ├── evaluate.py
 │   ├── predict.py
+│   ├── prepare_meld.py
+│   ├── import_official_meld_features.py
 │   └── smoke_test.py
 ├── tests/                               # Automated PyTest suite
 │   ├── test_dataset.py
@@ -123,7 +134,7 @@ NeuroSense-Net/
 ### Environment Setup
 
 ```bash
-git clone https://github.com/your-username/NeuroSense-Net.git
+git clone https://github.com/robotaves-max/NeuroSense-Net.git
 cd NeuroSense-Net
 pip install -r requirements.txt
 # Required for real MELD feature extraction and the web interface

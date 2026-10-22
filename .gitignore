@@ -36,6 +36,9 @@ htmlcov/
 outputs/
 checkpoints/
 /data/
+data/
+wandb/
+.ipynb_checkpoints/
 neurosense_outputs/
 *.pt
 *.pth

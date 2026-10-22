@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use NeuroSense-Net, please cite it as below."
+title: "NeuroSense-Net: Reliability-Aware Multimodal Emotion Recognition"
+authors:
+  - name: "robotaves-max"
+version: 1.0.0
+date-released: 2026-10-22
+url: "https://github.com/robotaves-max/NeuroSense-Net"
+license: MIT
