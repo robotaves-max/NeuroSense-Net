@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -183,7 +183,6 @@ def plot_gate_weights_by_class(
     save_path: Path,
 ) -> None:
     """Plot average modality gate weights grouped by true emotion class."""
-    modalities = ["Text", "Audio", "Video"]
     n_classes = len(class_names)
     class_means = np.zeros((n_classes, 3))
 

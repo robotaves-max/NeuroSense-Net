@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import pickle
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 import numpy as np

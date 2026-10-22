@@ -35,7 +35,7 @@ def main():
     inspector = DatasetInspector(data_root=args.data_root, key_overrides=overrides)
 
     try:
-        report = inspector.inspect()
+        inspector.inspect()
         out_json, out_txt = inspector.generate_reports(Path(args.output_dir))
         logger.info(f"Successfully generated dataset reports in {args.output_dir}")
         print("\n" + Path(out_txt).read_text(encoding="utf-8"))

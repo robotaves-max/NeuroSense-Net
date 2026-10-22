@@ -1,7 +1,7 @@
 import math
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -11,10 +11,10 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from src.config import NeuroSenseConfig
-from src.losses import FocalLoss, compute_class_weights
+from src.losses import FocalLoss
 from src.metrics import compute_metrics
 from src.models.neurosense_net import NeuroSenseNet
-from src.utils import MELD_EMOTIONS, load_json, save_json, setup_logger
+from src.utils import MELD_EMOTIONS, setup_logger
 
 logger = setup_logger("neurosense.engine")
 

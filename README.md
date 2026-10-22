@@ -3,6 +3,7 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![CI](https://github.com/robotaves-max/NeuroSense-Net/actions/workflows/ci.yml/badge.svg)](https://github.com/robotaves-max/NeuroSense-Net/actions/workflows/ci.yml)
 
 **NeuroSense-Net** is a reproducible multimodal emotion-recognition project built around the real **MELD** (Multimodal EmotionLines Dataset) benchmark. It combines **Text**, **Audio**, and **Video** representations using reliability-aware adaptive gating and cross-modal transformer attention. A Streamlit interface lets a user select any available input(s) at prediction time.
 
@@ -84,6 +85,9 @@ NeuroSense-Net/
 ├── requirements-optional.txt            # Feature extraction and demo dependencies
 ├── pyproject.toml                       # Build & pytest config
 ├── .gitignore
+├── Dockerfile                           # CPU demo container
+├── Makefile                             # Common development commands
+├── .github/workflows/ci.yml             # CPU CI on Python 3.10 and 3.11
 ├── examples/
 │   └── sample_predictions.csv           # Small synthetic example output
 ├── configs/                             # YAML hyperparameter configs

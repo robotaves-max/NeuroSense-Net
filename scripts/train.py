@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.config import config_to_dict, load_config, save_config
+from src.config import load_config, save_config
 from src.data.collate import MultimodalCollate
 from src.data.dataset import MELDDataset, SyntheticMELDDataset
 from src.data.inspection import DatasetInspector
