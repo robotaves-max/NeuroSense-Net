@@ -1,4 +1,6 @@
 import logging
+import re
+import hashlib
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -114,6 +116,7 @@ class MELDDataset(Dataset):
         keys_map: Optional[Dict[str, str]] = None,
         label_mapping: Optional[Dict[str, int]] = None,
         normalization_stats: Optional[Dict[str, Tuple[torch.Tensor, torch.Tensor]]] = None,
+        context_window: int = 0,
     ):
         super().__init__()
         self.keys_map = keys_map or {
@@ -125,8 +128,17 @@ class MELDDataset(Dataset):
         }
         self.label_mapping = label_mapping or {name: i for i, name in enumerate(MELD_EMOTIONS)}
         self.normalization_stats = normalization_stats
+        if context_window < 0:
+            raise ValueError("context_window must be non-negative")
+        self.context_window = context_window
 
         self.samples = self._load_data(data_path)
+        for sample in self.samples:
+            speaker_name = sample.pop("speaker_name", "")
+            if speaker_name:
+                speaker_hash = hashlib.sha256(speaker_name.encode("utf-8")).digest()
+                sample["speaker_id"] = int.from_bytes(speaker_hash[:4], "big") % 511 + 1
+        self._attach_dialogue_context()
         logger.info(f"Loaded {len(self.samples)} samples for dataset split.")
 
     def _load_data(self, data_path: Union[str, Dict[str, Any], List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
@@ -179,6 +191,9 @@ class MELDDataset(Dataset):
         else:
             label_int = 0
         sample["label"] = torch.tensor(label_int, dtype=torch.long)
+        speaker = raw.get("speaker_id", raw.get("speaker", ""))
+        sample["speaker_name"] = str(speaker) if speaker else ""
+        sample["speaker_id"] = int(speaker) if isinstance(speaker, (int, np.integer)) else 0
 
         # Extract modalities and availability
         for mod in ["text", "audio", "video"]:
@@ -200,6 +215,31 @@ class MELDDataset(Dataset):
                 sample[f"{mod}_avail"] = torch.tensor(False, dtype=torch.bool)
 
         return sample
+
+    def _attach_dialogue_context(self) -> None:
+        """Prepend up to N preceding utterance embeddings from the same dialogue."""
+        groups: Dict[str, List[Tuple[int, int]]] = {}
+        for index, sample in enumerate(self.samples):
+            match = re.search(r"(?:^|_)d(\d+)_u(\d+)$", sample["id"])
+            if match:
+                groups.setdefault(match.group(1), []).append((int(match.group(2)), index))
+
+        for utterances in groups.values():
+            utterances.sort()
+            for position, (_, sample_index) in enumerate(utterances):
+                sample = self.samples[sample_index]
+                current = sample["text"]
+                if self.context_window == 0:
+                    continue
+                previous = utterances[max(0, position - self.context_window):position]
+                context = [
+                    self.samples[index]["text"]
+                    .reshape(-1, self.samples[index]["text"].shape[-1])
+                    .mean(dim=0, keepdim=True)
+                    for _, index in previous
+                ]
+                target = current.reshape(-1, current.shape[-1])
+                sample["text"] = torch.cat([*context, target], dim=0)
 
     def __len__(self) -> int:
         return len(self.samples)

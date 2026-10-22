@@ -72,6 +72,7 @@ def read_meld_split(csv_path: Path, split: str, clips_root: Optional[Path] = Non
                 "text": utterance,
                 "label": MELD_EMOTIONS.index(emotion),
                 "emotion": emotion,
+                "speaker": _column(row, "Speaker", "speaker"),
                 "clip_path": str(clip_path) if clip_path else None,
             })
     return rows
@@ -116,17 +117,39 @@ class MELDFeatureExtractor:
     on MELD labels, which is practical on a student GPU and avoids label leakage.
     """
 
-    def __init__(self, device: Optional[str] = None, max_frames: int = 12):
+    def __init__(
+        self,
+        device: Optional[str] = None,
+        max_frames: int = 12,
+        text_encoder: str = "minilm",
+        audio_encoder: str = "wav2vec2",
+    ):
         _optional_imports()
         import torchvision.models as tv_models
-        from transformers import AutoModel, AutoTokenizer, Wav2Vec2Model, Wav2Vec2Processor
+        from transformers import AutoModel, AutoProcessor, AutoTokenizer
+
+        text_models = {
+            "minilm": "sentence-transformers/all-MiniLM-L6-v2",
+            "roberta-base": "roberta-base",
+        }
+        audio_models = {
+            "wav2vec2": "facebook/wav2vec2-base",
+            "wavlm": "microsoft/wavlm-base-plus",
+            "hubert": "facebook/hubert-base-ls960",
+        }
+        if text_encoder not in text_models:
+            raise ValueError(f"Unsupported text encoder: {text_encoder}")
+        if audio_encoder not in audio_models:
+            raise ValueError(f"Unsupported audio encoder: {audio_encoder}")
 
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
         self.max_frames = max_frames
-        self.text_tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
-        self.text_model = AutoModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2").to(self.device).eval()
-        self.audio_processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base")
-        self.audio_model = Wav2Vec2Model.from_pretrained("facebook/wav2vec2-base").to(self.device).eval()
+        self.text_encoder = text_encoder
+        self.audio_encoder = audio_encoder
+        self.text_tokenizer = AutoTokenizer.from_pretrained(text_models[text_encoder])
+        self.text_model = AutoModel.from_pretrained(text_models[text_encoder]).to(self.device).eval()
+        self.audio_processor = AutoProcessor.from_pretrained(audio_models[audio_encoder])
+        self.audio_model = AutoModel.from_pretrained(audio_models[audio_encoder]).to(self.device).eval()
         weights = tv_models.ResNet18_Weights.IMAGENET1K_V1
         backbone = tv_models.resnet18(weights=weights)
         self.video_model = torch.nn.Sequential(*list(backbone.children())[:-1]).to(self.device).eval()

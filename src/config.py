@@ -26,6 +26,12 @@ class DataConfig:
 
 
 @dataclass
+class ContextConfig:
+    window: int = 0
+    speaker_identity: bool = False
+
+
+@dataclass
 class ModelConfig:
     hidden_dim: int = 256
     num_heads: int = 4
@@ -33,6 +39,10 @@ class ModelConfig:
     dropout: float = 0.20
     classifier_hidden_dim: int = 256
     sequence_encoder: str = "attention_pooling"
+    baseline: str = "full"
+    use_gate: bool = True
+    use_cross_modal_attention: bool = True
+    use_speaker_embedding: bool = False
 
 
 @dataclass
@@ -70,6 +80,7 @@ class NeuroSenseConfig:
     deterministic: bool = True
     paths: PathsConfig = field(default_factory=PathsConfig)
     data: DataConfig = field(default_factory=DataConfig)
+    context: ContextConfig = field(default_factory=ContextConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
     loss: LossConfig = field(default_factory=LossConfig)
     training: TrainingConfig = field(default_factory=TrainingConfig)
@@ -93,6 +104,10 @@ class NeuroSenseConfig:
             )
         if self.data.batch_size <= 0:
             raise ValueError(f"batch_size must be positive, got {self.data.batch_size}")
+        if self.context.window < 0:
+            raise ValueError(f"context.window must be non-negative, got {self.context.window}")
+        if self.model.baseline not in {"full", "text_only", "audio_only", "video_only", "concat", "late"}:
+            raise ValueError(f"Unknown model baseline: {self.model.baseline}")
 
 
 def dict_to_config(d: Dict[str, Any]) -> NeuroSenseConfig:
@@ -100,6 +115,7 @@ def dict_to_config(d: Dict[str, Any]) -> NeuroSenseConfig:
     paths_dict = d.get("paths", {})
     data_dict = d.get("data", {})
     model_dict = d.get("model", {})
+    context_dict = d.get("context", {})
     loss_dict = d.get("loss", {})
     training_dict = d.get("training", {})
     eval_dict = d.get("evaluation", {})
@@ -110,6 +126,7 @@ def dict_to_config(d: Dict[str, Any]) -> NeuroSenseConfig:
         deterministic=d.get("deterministic", True),
         paths=PathsConfig(**paths_dict),
         data=DataConfig(**data_dict),
+        context=ContextConfig(**context_dict),
         model=ModelConfig(**model_dict),
         loss=LossConfig(**loss_dict),
         training=TrainingConfig(**training_dict),
@@ -141,6 +158,10 @@ def config_to_dict(config: NeuroSenseConfig) -> Dict[str, Any]:
             "modality_key_overrides": config.data.modality_key_overrides,
             "label_mapping": config.data.label_mapping,
         },
+        "context": {
+            "window": config.context.window,
+            "speaker_identity": config.context.speaker_identity,
+        },
         "model": {
             "hidden_dim": config.model.hidden_dim,
             "num_heads": config.model.num_heads,
@@ -148,6 +169,10 @@ def config_to_dict(config: NeuroSenseConfig) -> Dict[str, Any]:
             "dropout": config.model.dropout,
             "classifier_hidden_dim": config.model.classifier_hidden_dim,
             "sequence_encoder": config.model.sequence_encoder,
+            "baseline": config.model.baseline,
+            "use_gate": config.model.use_gate,
+            "use_cross_modal_attention": config.model.use_cross_modal_attention,
+            "use_speaker_embedding": config.model.use_speaker_embedding,
         },
         "loss": {
             "name": config.loss.name,

@@ -17,6 +17,7 @@ from src.data.dataset import MELDDataset, SyntheticMELDDataset
 from src.data.inspection import DatasetInspector
 from src.engine import Evaluator, Trainer, run_modality_ablation_study
 from src.losses import compute_class_weights
+from src.metrics import fit_temperature
 from src.models.neurosense_net import NeuroSenseNet
 from src.utils import (
     MELD_EMOTIONS,
@@ -129,9 +130,15 @@ def main():
             raise ValueError(f"Failed to infer all feature dimensions: {feature_dims}")
 
         splits = inspector.splits
-        train_dataset = MELDDataset(splits["train"], keys_map=report["inferred_keys"])
-        val_dataset = MELDDataset(splits["val"], keys_map=report["inferred_keys"])
-        test_dataset = MELDDataset(splits["test"], keys_map=report["inferred_keys"])
+        train_dataset = MELDDataset(
+            splits["train"], keys_map=report["inferred_keys"], context_window=config.context.window
+        )
+        val_dataset = MELDDataset(
+            splits["val"], keys_map=report["inferred_keys"], context_window=config.context.window
+        )
+        test_dataset = MELDDataset(
+            splits["test"], keys_map=report["inferred_keys"], context_window=config.context.window
+        )
 
         if config.data.normalize:
             norm_stats = train_dataset.compute_normalization_stats()
@@ -184,6 +191,10 @@ def main():
         classifier_hidden_dim=config.model.classifier_hidden_dim,
         sequence_encoder_type=config.model.sequence_encoder,
         modality_dropout_prob=config.training.modality_dropout_probability,
+        baseline=config.model.baseline,
+        use_gate=config.model.use_gate,
+        use_cross_modal_attention=config.model.use_cross_modal_attention,
+        use_speaker_embedding=config.context.speaker_identity or config.model.use_speaker_embedding,
     )
 
     # Training
@@ -199,8 +210,21 @@ def main():
 
     # Final Test Evaluation with Best Model
     device = get_device()
+    val_res = Evaluator(model, val_loader, device).evaluate()
+    temperature = fit_temperature(
+        torch.from_numpy(val_res["logits"]), torch.from_numpy(val_res["y_true"])
+    )
+    calibrated_val = Evaluator(model, val_loader, device).evaluate(temperature=temperature)
+    save_json(
+        {
+            "validation_ece_before": val_res["metrics"]["ece"],
+            "validation_ece_after": calibrated_val["metrics"]["ece"],
+            "temperature": temperature,
+        },
+        run_dir / "calibration.json",
+    )
     test_evaluator = Evaluator(model, test_loader, device)
-    test_res = test_evaluator.evaluate()
+    test_res = test_evaluator.evaluate(temperature=temperature)
 
     metrics = test_res["metrics"]
     logger.info("=" * 60)

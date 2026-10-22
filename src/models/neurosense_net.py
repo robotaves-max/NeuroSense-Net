@@ -27,12 +27,20 @@ class NeuroSenseNet(nn.Module):
         classifier_hidden_dim: int = 256,
         sequence_encoder_type: str = "attention_pooling",
         modality_dropout_prob: float = 0.10,
+        baseline: str = "full",
+        use_gate: bool = True,
+        use_cross_modal_attention: bool = True,
+        use_speaker_embedding: bool = False,
     ):
         super().__init__()
         self.feature_dims = feature_dims
         self.num_classes = num_classes
         self.hidden_dim = hidden_dim
         self.modality_dropout_prob = modality_dropout_prob
+        self.baseline = baseline
+        self.use_gate = use_gate
+        self.use_cross_modal_attention = use_cross_modal_attention
+        self.speaker_embedding = nn.Embedding(512, hidden_dim) if use_speaker_embedding else None
 
         # Projection heads per modality
         self.text_proj = ModalityProjection(feature_dims["text"], hidden_dim, dropout)
@@ -56,13 +64,20 @@ class NeuroSenseNet(nn.Module):
         self.adaptive_gate = ReliabilityAdaptiveGate(hidden_dim=hidden_dim, dropout=dropout)
 
         # Classification Head
+        classifier_input_dim = hidden_dim * 3 if baseline == "concat" else hidden_dim
         self.classifier = nn.Sequential(
-            nn.LayerNorm(hidden_dim),
-            nn.Linear(hidden_dim, classifier_hidden_dim),
+            nn.LayerNorm(classifier_input_dim),
+            nn.Linear(classifier_input_dim, classifier_hidden_dim),
             nn.GELU(),
             nn.Dropout(dropout),
             nn.Linear(classifier_hidden_dim, num_classes),
         )
+        if baseline == "late":
+            self.modality_classifiers = nn.ModuleList(
+                [nn.Linear(hidden_dim, num_classes) for _ in range(3)]
+            )
+        else:
+            self.modality_classifiers = None
 
         self._init_classifier()
 
@@ -133,6 +148,12 @@ class NeuroSenseNet(nn.Module):
         audio_avail = batch["audio_avail"].to(device)
         video_avail = batch["video_avail"].to(device)
 
+        if self.baseline in {"text_only", "audio_only", "video_only"}:
+            selected = {"text_only": 0, "audio_only": 1, "video_only": 2}[self.baseline]
+            availability_mask = torch.zeros_like(torch.stack([text_avail, audio_avail, video_avail], dim=1))
+            availability_mask[:, selected] = torch.stack([text_avail, audio_avail, video_avail], dim=1)[:, selected]
+            text_avail, audio_avail, video_avail = availability_mask.unbind(dim=1)
+
         # Apply evaluation ablation overrides if provided
         if override_availability:
             if "text" in override_availability and not override_availability["text"]:
@@ -157,18 +178,41 @@ class NeuroSenseNet(nn.Module):
         t_token = self.text_seq(t_proj, text_seq_mask)
         a_token = self.audio_seq(a_proj, audio_seq_mask)
         v_token = self.video_seq(v_proj, video_seq_mask)
+        if self.speaker_embedding is not None and "speaker_id" in batch:
+            speaker_ids = batch["speaker_id"].to(device).clamp(0, self.speaker_embedding.num_embeddings - 1)
+            t_token = t_token + self.speaker_embedding(speaker_ids)
 
         # Stack modality tokens: [B, 3, hidden_dim]
         modality_tokens = torch.stack([t_token, a_token, v_token], dim=1)
 
         # 3. Cross-modal Transformer Self-Attention
-        contextualized_tokens = self.cross_modal_fusion(modality_tokens, availability_mask)
+        contextualized_tokens = (
+            self.cross_modal_fusion(modality_tokens, availability_mask)
+            if self.use_cross_modal_attention
+            else modality_tokens * availability_mask.unsqueeze(-1)
+        )
 
         # 4. Reliability Adaptive Gating Fusion
-        fused_embedding, gate_weights = self.adaptive_gate(contextualized_tokens, availability_mask)
+        if self.use_gate:
+            fused_embedding, gate_weights = self.adaptive_gate(contextualized_tokens, availability_mask)
+        else:
+            weights = availability_mask.float()
+            weights = weights / weights.sum(dim=1, keepdim=True).clamp(min=1.0)
+            gate_weights = weights
+            fused_embedding = (contextualized_tokens * weights.unsqueeze(-1)).sum(dim=1)
 
         # 5. 7-Class Emotion Classification Head
-        logits = self.classifier(fused_embedding)
+        if self.baseline == "concat":
+            logits = self.classifier(contextualized_tokens.flatten(start_dim=1))
+        elif self.baseline == "late" and self.modality_classifiers is not None:
+            per_modality = torch.stack(
+                [head(contextualized_tokens[:, idx]) for idx, head in enumerate(self.modality_classifiers)],
+                dim=1,
+            )
+            logits = (per_modality * availability_mask.unsqueeze(-1)).sum(dim=1)
+            logits = logits / availability_mask.sum(dim=1, keepdim=True).clamp(min=1)
+        else:
+            logits = self.classifier(fused_embedding)
 
         return {
             "logits": logits,

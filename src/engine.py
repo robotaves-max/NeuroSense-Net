@@ -208,7 +208,7 @@ class Evaluator:
         self.criterion = nn.CrossEntropyLoss()
 
     def evaluate(
-        self, override_availability: Optional[Dict[str, bool]] = None
+        self, override_availability: Optional[Dict[str, bool]] = None, temperature: float = 1.0
     ) -> Dict[str, Any]:
         self.model.eval()
         self.model.to(self.device)
@@ -238,12 +238,17 @@ class Evaluator:
         cat_targets = torch.cat(all_targets, dim=0)
         cat_gate_weights = torch.cat(all_gate_weights, dim=0)
 
-        probs = torch.softmax(cat_logits, dim=-1).numpy()
+        raw_probs = torch.softmax(cat_logits, dim=-1).numpy()
+        probs = torch.softmax(cat_logits / temperature, dim=-1).numpy()
         preds = cat_logits.argmax(dim=-1).numpy()
         targets_np = cat_targets.numpy()
         avg_loss = total_loss / len(self.dataloader)
 
-        metrics = compute_metrics(targets_np, preds, class_names=MELD_EMOTIONS)
+        metrics = compute_metrics(targets_np, preds, class_names=MELD_EMOTIONS, y_prob=probs)
+        metrics["ece_before_temperature_scaling"] = compute_metrics(
+            targets_np, preds, class_names=MELD_EMOTIONS, y_prob=raw_probs
+        )["ece"]
+        metrics["temperature"] = float(temperature)
         metrics["loss"] = float(avg_loss)
 
         return {
@@ -251,6 +256,7 @@ class Evaluator:
             "y_true": targets_np,
             "y_pred": preds,
             "probs": probs,
+            "logits": cat_logits.numpy(),
             "gate_weights": cat_gate_weights.numpy(),
             "ids": all_ids,
         }
